@@ -28,16 +28,15 @@ Structure TRTResult
 End Structure
 
 Class TRTSpectrum
-    Dim atomic_num() As String = {"Hydrogen", "Helium", "Lithium", "Beryllium", "Boron", "Carbon", "Nitrogen", "Oxygen", "Fluorine", "Neon", "Sodium", "Magnesium", "Aluminum", "Silicon", "Phosphorus", "Sulfur", "Chlorine", "Argon",
-        "Potassium", "Calcium", "Scandium", "Titanium", "Vanadium", "Chromium", "Manganese", "Iron", "Cobalt", "Nickel", "Copper", "Zinc", "Gallium", "Germanium", "Arsenic", "Selenium", "Bromine", "Krypton",
-        "Rubidium", "Strontium", "Yttrium", "Zirconium", "Niobium", "Molybdenum", "Technetium", "Ruthenium", "Rhodium", "Palladium", "Silver", "Cadmium", "Indium", "Tin", "Antimony", "Tellurium", "Iodine", "Xenon",
-        "Cesium", "Barium", "Lanthanum", "Cerium", "Praseodymium", "Neodymium", "Promethium", "Samarium", "Europium", "Gadolinium", "Terbium", "Dysprosium", "Holmium", "Erbium", "Thulium", "Ytterbium", "Lutetium",
-        "Hafnium", "Tantalum", "Tungsten", "Rhenium", "Osmium", "Iridium", "Platinum", "Gold", "Mercury", "Thallium", "Lead", "Bismuth", "Polonium", "Astatine", "Radon",
-        "Francium", "Radium", "Actinium", "Thorium", "Protactinium", "Uranium", "Neptunium", "Plutonium", "Americium", "Curium", "Berkelium", "Californium", "Einsteinium", "Fermium", "Mendelevium", "Nobelium", "Lawrencium",
-        "Rutherfordium", "Dubnium", "Seaborgium", "Bohrium", "Hassium", "Meitnerium", "Darmstadtium", "Roentgenium", "Copernicium", "Ununtrium", "Flerovium", "Ununpentium", "Livermorium", "", "Ununoctium"}
+    Dim atomic_num() As String = {"H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar",
+        "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
+        "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe", "Cs",
+        "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra",
+        "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"}
     Public name As String
     Public datetime As DateTime
     Public elements As List(Of TRTResult)
+    Public chart As Integer()
     Public Sub New()
         elements = New List(Of TRTResult)
     End Sub
@@ -79,8 +78,18 @@ Class TRTSpectrum
         sheet.Cell(5 + count, 5).FormulaA1 = "=SUM(E5:E" + (4 + count).ToString + ")"
         sheet.Cell(5 + count, 6).FormulaA1 = "=SUM(F5:F" + (4 + count).ToString + ")"
         sheet.Cell(5 + count, 7).FormulaA1 = "=SUM(G5:G" + (4 + count).ToString + ")"
+
+        'chart
+        sheet.Cell(1, 10).Value = "Energy (keV)"
+        sheet.Cell(1, 11).Value = "Intensity"
+        For i As Integer = 0 To chart.Length - 1
+            sheet.Cell(2 + i, 10).Value = 0.005 * i - 0.48
+            sheet.Cell(2 + i, 11).Value = chart(i)
+        Next
+
         'style
-        sheet.Range(4, 1, 5 + count, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right
+        sheet.Range(1, 1, 5 + count, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right
+        sheet.Range(4, 10, chart.Length + 1, 11).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right
         sheet.ColumnsUsed().AdjustToContents()
 
         'summarySheet
@@ -155,9 +164,9 @@ Module Module1
 
                 'Elements
                 Dim eTRTResult As IEnumerable(Of XElement) =
-                From el In xDoc.<TRTSpectrum>.<ClassInstance>.<ClassInstance>
-                Where el.@Type = "TRTResult"
-                Select el
+                    From el In xDoc.<TRTSpectrum>.<ClassInstance>.<ClassInstance>
+                    Where el.@Type = "TRTResult"
+                    Select el
                 Dim elements = eTRTResult.<Result>
                 For Each element In elements
                     Dim elemdata As New TRTResult(element.<Atom>.Value,
@@ -170,6 +179,12 @@ Module Module1
                                                   element.<ErrorFlag>.Value)
                     data.elements.Add(elemdata)
                 Next
+
+                'Chart
+                Dim eTRTChart As IEnumerable(Of XElement) =
+                    From el In xDoc.<TRTSpectrum>.<ClassInstance>.<Channels>
+                    Select el
+                data.chart = eTRTChart.Value.Split(",").ToList().ConvertAll(Function(str) Int32.Parse(str)).ToArray()
 
                 'writing to sheet
                 Dim sheet As IXLWorksheet = workbook.Worksheets.Add(data.name)
